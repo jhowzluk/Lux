@@ -1,0 +1,33 @@
+:root { 
+    --hotel-gold: #FFC72C; 
+    --hotel-gold-dark: #DAA520; 
+}
+body { 
+    font-family: 'Inter', sans-serif; 
+    background-color: #f8f9fa; 
+}
+.nav-link-active { 
+    font-weight: bold; 
+    color: white !important; 
+}
+.profile-btn-active { 
+    background-color: #333; 
+    color: white; 
+}
+.modal-panel { 
+    animation: slide-up 0.3s ease-out; 
+}
+.modal-backdrop { 
+    animation: fade-in 0.3s ease-out; 
+}
+@keyframes slide-up { 
+    from { transform: translateY(20px); opacity: 0; } 
+    to { transform: translateY(0); opacity: 1; } 
+}
+@keyframes fade-in { 
+    from { opacity: 0; } 
+    to { opacity: 1; } 
+}
+.page-content { 
+    animation: fade-in 0.5s ease-out; 
+}
