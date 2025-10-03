@@ -1,4 +1,3 @@
-import { state } from './state.js';
 import { initContaPage } from './pages/conta.js';
 import { initRelatoriosPage } from './pages/relatorios.js';
 

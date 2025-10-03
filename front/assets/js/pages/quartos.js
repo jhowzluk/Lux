@@ -1,9 +1,6 @@
 import { state } from '../state.js';
 import { openModal, closeModal } from '../ui.js';
 import { renderTableQuartos } from './renderer.js';
-import { nextRoomId } from '../api.js';
-
-let currentNextRoomId = nextRoomId;
 
 const editRoom = (id) => {
     const room = state.rooms.find(r => r.id === id);

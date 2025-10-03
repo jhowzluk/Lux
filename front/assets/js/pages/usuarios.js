@@ -1,9 +1,6 @@
 import { state } from '../state.js';
 import { openModal, closeModal } from '../ui.js';
 import { renderTableUsuarios } from './renderer.js';
-import { nextUserId } from '../api.js';
-
-let currentNextUserId = nextUserId;
 
 const editUser = (id) => {
     const user = state.users.find(u => u.id === id);

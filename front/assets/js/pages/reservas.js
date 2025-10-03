@@ -1,8 +1,5 @@
 import { state } from '../state.js';
 import { openModal, closeModal, getStatusBadgeReserva } from '../ui.js';
-import { nextReservationId } from '../api.js';
-
-let currentNextReservationId = nextReservationId;
 
 const renderListReservas = (data = state.reservations) => {
     const reservationList = document.getElementById('reservation-list');
