@@ -14,9 +14,9 @@ async function loadInitialDataAndInitPages() {
     try {
         // Busca todos os dados da API em paralelo para ser mais rápido
         const [quartosRes, reservasRes, usuariosRes] = await Promise.all([
-            fetch('http://localhost:3000/api/quartos'),
-            fetch('http://localhost:3000/api/reservas'),
-            fetch('http://localhost:3000/api/usuarios')
+            fetch('/api/quartos'),
+            fetch('/api/reservas'),
+            fetch('/api/usuarios')
         ]);
 
         state.rooms = await quartosRes.json();
@@ -52,7 +52,7 @@ const applyPermissions = () => {
 const login = async (username, password) => {
     document.getElementById('login-error').classList.add('hidden');
     try {
-        const response = await fetch('http://localhost:3000/api/auth/login', {
+        const response = await fetch('/api/auth/login', { // CORRIGIDO
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
