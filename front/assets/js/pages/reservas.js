@@ -1,11 +1,11 @@
 import { state } from '../state.js';
 import { openModal, closeModal, getStatusBadgeReserva } from '../ui.js';
+import API_BASE_URL from '../api.js';
 
 const renderListReservas = (data = state.reservations) => {
     const reservationList = document.getElementById('reservation-list');
     const noResultsMessage = document.getElementById('no-results-reserva');
     if (!reservationList || !noResultsMessage) return;
-    
     reservationList.innerHTML = '';
     noResultsMessage.classList.toggle('hidden', data.length > 0);
     data.forEach(res => {
@@ -13,7 +13,6 @@ const renderListReservas = (data = state.reservations) => {
         card.className = 'bg-white border border-gray-200 rounded-lg p-4 shadow-sm';
         const cancelDisabled = res.status === 'Cancelada' || res.status === 'Check-out' ? 'disabled' : '';
         const cancelClasses = cancelDisabled ? 'text-gray-300 cursor-not-allowed' : 'text-red-500 hover:text-red-700';
-
         card.innerHTML = `
             <div class="flex justify-between items-start">
                 <div>
@@ -39,9 +38,7 @@ const renderListReservas = (data = state.reservations) => {
 const editReservation = (id) => {
     const res = state.reservations.find(r => r.id === id);
     if (!res) return;
-    
     const formNode = document.getElementById('edit-reservation-template').cloneNode(true);
-    formNode.querySelector('#edit-res-id').value = res.id;
     formNode.querySelector('#edit-res-hospede').value = res.hospede;
     formNode.querySelector('#edit-res-cpf').value = res.cpf;
     formNode.querySelector('#edit-res-telefone').value = res.telefone;
@@ -51,25 +48,36 @@ const editReservation = (id) => {
     formNode.querySelector('#edit-res-quarto').value = res.quarto;
     formNode.querySelector('#edit-res-referencia').value = res.referencia;
     formNode.querySelector('#edit-res-status').value = res.status;
-    
     const footerButtons = [
         { text: 'Cancelar', classes: 'px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300', onClick: closeModal },
-        { text: 'Salvar Alterações', classes: 'px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600', onClick: () => {
-            const updatedRes = {
-                ...res,
-                hospede: formNode.querySelector('#edit-res-hospede').value,
-                cpf: formNode.querySelector('#edit-res-cpf').value,
-                telefone: formNode.querySelector('#edit-res-telefone').value,
-                qtdPessoas: parseInt(formNode.querySelector('#edit-res-qtd-pessoas').value),
-                checkIn: formNode.querySelector('#edit-res-checkin').value,
-                checkOut: formNode.querySelector('#edit-res-checkout').value,
-                referencia: formNode.querySelector('#edit-res-referencia').value,
-                status: formNode.querySelector('#edit-res-status').value,
-            };
-            state.reservations = state.reservations.map(r => r.id === updatedRes.id ? updatedRes : r);
-            renderListReservas();
-            closeModal();
-        }}
+        {
+            text: 'Salvar Alterações', classes: 'px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600', onClick: async () => {
+                const updatedResData = {
+                    hospede: formNode.querySelector('#edit-res-hospede').value,
+                    cpf: formNode.querySelector('#edit-res-cpf').value,
+                    telefone: formNode.querySelector('#edit-res-telefone').value,
+                    qtdPessoas: parseInt(formNode.querySelector('#edit-res-qtd-pessoas').value),
+                    checkIn: formNode.querySelector('#edit-res-checkin').value,
+                    checkOut: formNode.querySelector('#edit-res-checkout').value,
+                    referencia: formNode.querySelector('#edit-res-referencia').value,
+                    status: formNode.querySelector('#edit-res-status').value,
+                };
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/reservas/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updatedResData)
+                    });
+                    const updatedResFromServer = await response.json();
+                    state.reservations = state.reservations.map(r => r.id === updatedResFromServer.id ? updatedResFromServer : r);
+                    renderListReservas();
+                    closeModal();
+                } catch (error) {
+                    console.error("Erro ao atualizar reserva:", error);
+                    alert("Falha ao atualizar reserva.");
+                }
+            }
+        }
     ];
     openModal('Editar Reserva', formNode, footerButtons);
 };
@@ -77,16 +85,28 @@ const editReservation = (id) => {
 const cancelReservation = (id) => {
     const res = state.reservations.find(r => r.id === id);
     if (!res || res.status === 'Cancelada' || res.status === 'Check-out') return;
-    
     const footerButtons = [
         { text: 'Voltar', classes: 'px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300', onClick: closeModal },
-        { text: 'Sim, Cancelar', classes: 'px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600', onClick: () => {
-            state.reservations = state.reservations.map(r => r.id === id ? { ...r, status: 'Cancelada' } : r);
-            const roomToFree = state.rooms.find(room => room.numero === res.quarto);
-            if (roomToFree) roomToFree.status = 'Disponível';
-            renderListReservas();
-            closeModal();
-        }}
+        {
+            text: 'Sim, Cancelar', classes: 'px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600', onClick: async () => {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/reservas/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'Cancelada' })
+                    });
+                    const updatedResFromServer = await response.json();
+                    state.reservations = state.reservations.map(r => r.id === updatedResFromServer.id ? updatedResFromServer : r);
+                    const roomToFree = state.rooms.find(room => room.numero === res.quarto);
+                    if (roomToFree) roomToFree.status = 'Disponível';
+                    renderListReservas();
+                    closeModal();
+                } catch (error) {
+                    console.error("Erro ao cancelar reserva:", error);
+                    alert("Falha ao cancelar reserva.");
+                }
+            }
+        }
     ];
     openModal('Confirmar Cancelamento', '<p>Tem certeza que deseja cancelar esta reserva?</p>', footerButtons);
 };
@@ -94,7 +114,6 @@ const cancelReservation = (id) => {
 export const initReservasPage = () => {
     window.editReservation = editReservation;
     window.cancelReservation = cancelReservation;
-
     const reservationForm = document.getElementById('reservation-form');
     const clearButton = document.getElementById('clear-button-reserva');
     const searchInput = document.getElementById('search-input-reserva');
@@ -103,7 +122,6 @@ export const initReservasPage = () => {
     const totalReservaInput = document.getElementById('total-reserva');
     const checkinInput = document.getElementById('check-in');
     const checkoutInput = document.getElementById('check-out');
-
     const updateAvailableRooms = () => {
         quartoSelect.innerHTML = '<option value="">Selecione um quarto</option>';
         state.rooms.filter(r => r.status === 'Disponível').forEach(room => {
@@ -114,19 +132,15 @@ export const initReservasPage = () => {
             quartoSelect.appendChild(option);
         });
     };
-    
     const calculateTotal = () => {
         const checkinDate = new Date(checkinInput.value);
         const checkoutDate = new Date(checkoutInput.value);
         const selectedOption = quartoSelect.options[quartoSelect.selectedIndex];
-        
         if (!selectedOption || !selectedOption.dataset.valor) {
             totalReservaInput.value = 'R$ 0,00';
             return;
         }
-
         const valorDiaria = parseFloat(selectedOption.dataset.valor);
-
         if (checkinInput.value && checkoutInput.value && checkoutDate > checkinDate && !isNaN(valorDiaria)) {
             const timeDiff = checkoutDate.getTime() - checkinDate.getTime();
             const diffDays = Math.ceil(timeDiff / (1000 * 3600 * 24));
@@ -136,7 +150,6 @@ export const initReservasPage = () => {
             totalReservaInput.value = 'R$ 0,00';
         }
     };
-    
     quartoSelect.addEventListener('change', () => {
         const selectedOption = quartoSelect.options[quartoSelect.selectedIndex];
         if (selectedOption.value) {
@@ -146,14 +159,11 @@ export const initReservasPage = () => {
         }
         calculateTotal();
     });
-
     checkinInput.addEventListener('change', calculateTotal);
     checkoutInput.addEventListener('change', calculateTotal);
-
-    reservationForm.addEventListener('submit', (e) => {
+    reservationForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const newReservation = {
-            id: currentNextReservationId++,
+        const newReservationData = {
             quarto: quartoSelect.value,
             checkIn: checkinInput.value,
             checkOut: checkoutInput.value,
@@ -165,23 +175,33 @@ export const initReservasPage = () => {
             status: 'Confirmada',
             referencia: document.getElementById('referencia').value,
         };
-        state.reservations.unshift(newReservation);
-        const roomToBook = state.rooms.find(r => r.numero === newReservation.quarto);
-        if (roomToBook) roomToBook.status = 'Indisponível';
-        renderListReservas();
-        reservationForm.reset();
-        updateAvailableRooms();
-        totalReservaInput.value = 'R$ 0,00';
-        valorDiariaInput.value = 'R$ 0,00';
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/reservas`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newReservationData)
+            });
+            const createdReservation = await response.json();
+            state.reservations.unshift(createdReservation);
+            const roomToBook = state.rooms.find(r => r.numero === createdReservation.quarto);
+            if (roomToBook) roomToBook.status = 'Indisponível';
+            renderListReservas();
+            reservationForm.reset();
+            updateAvailableRooms();
+            totalReservaInput.value = 'R$ 0,00';
+            valorDiariaInput.value = 'R$ 0,00';
+        } catch (error) {
+            console.error("Erro ao criar reserva:", error);
+            alert("Falha ao criar reserva.");
+        }
     });
-
     clearButton.addEventListener('click', () => {
         reservationForm.reset();
         updateAvailableRooms();
         totalReservaInput.value = 'R$ 0,00';
         valorDiariaInput.value = 'R$ 0,00';
     });
-    searchInput.addEventListener('input', (e) => { 
+    searchInput.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
         const filteredData = state.reservations.filter(res => res.hospede.toLowerCase().includes(searchTerm) || res.cpf.includes(searchTerm));
         renderListReservas(filteredData);

@@ -1,7 +1,8 @@
-const { users } = require('../database/mock'); // Importe os usuários
+const { users, rooms } = require('../database/mock'); // Importe os usuários
 
 exports.login = async (req, res) => {
     const { username, password } = req.body;
+    console.log(rooms);
 
     // Lógica de busca de usuário nos dados mockados
     const user = users.find(u => u.usuario === username && u.senha === password && u.status === 'Ativo');
