@@ -78,6 +78,7 @@ const inactivateUser = (id) => {
     openModal(modalTitle, modalText, footerButtons);
 };
 
+
 export const initUsuariosPage = () => {
     window.editUser = editUser;
     window.inactivateUser = inactivateUser;
@@ -107,13 +108,20 @@ export const initUsuariosPage = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newUserData)
             });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Falha ao criar usuário.');
+            }
+
             const createdUser = await response.json();
+
             state.users.unshift(createdUser);
             renderTableUsuarios();
             userForm.reset();
         } catch (error) {
             console.error("Erro ao criar usuário:", error);
-            alert("Falha ao criar novo usuário.");
+            alert(error.message);
         }
     });
     clearButton.addEventListener('click', () => userForm.reset());

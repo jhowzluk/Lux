@@ -11,6 +11,13 @@ exports.getAllUsuarios = (req, res) => {
 };
 
 exports.createUsuario = (req, res) => {
+    const { email, cpf } = req.body;
+
+    const userExists = users.some(u => u.email === email || u.cpf === cpf);
+    if (userExists) {
+        return res.status(409).json({ message: 'Usuário com este e-mail ou CPF já existe.' });
+    }
+
     const newUser = { ...req.body, id: nextUserId++ };
     users.unshift(newUser);
     res.status(201).json(sanitizeUser(newUser));
