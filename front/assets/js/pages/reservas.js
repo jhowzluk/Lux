@@ -122,6 +122,25 @@ export const initReservasPage = () => {
     const totalReservaInput = document.getElementById('total-reserva');
     const checkinInput = document.getElementById('check-in');
     const checkoutInput = document.getElementById('check-out');
+
+    const hoje = new Date().toISOString().split('T')[0];
+    checkinInput.setAttribute('min', hoje);
+
+    checkinInput.addEventListener('change', () => {
+        if (checkinInput.value) {
+            // Libera o campo de check-out e define a data mínima
+            checkoutInput.disabled = false;
+            checkoutInput.setAttribute('min', checkinInput.value);
+        } else {
+            // Bloqueia e limpa o campo de check-out se o check-in for limpo
+            checkoutInput.disabled = true;
+            checkoutInput.value = '';
+        }
+        calculateTotal();
+    });
+
+    checkoutInput.disabled = true;
+
     const updateAvailableRooms = () => {
         quartoSelect.innerHTML = '<option value="">Selecione um quarto</option>';
         state.rooms.filter(r => r.status === 'Disponível').forEach(room => {
@@ -132,6 +151,7 @@ export const initReservasPage = () => {
             quartoSelect.appendChild(option);
         });
     };
+
     const calculateTotal = () => {
         const checkinDate = new Date(checkinInput.value);
         const checkoutDate = new Date(checkoutInput.value);
@@ -150,6 +170,7 @@ export const initReservasPage = () => {
             totalReservaInput.value = 'R$ 0,00';
         }
     };
+
     quartoSelect.addEventListener('change', () => {
         const selectedOption = quartoSelect.options[quartoSelect.selectedIndex];
         if (selectedOption.value) {
@@ -159,8 +180,10 @@ export const initReservasPage = () => {
         }
         calculateTotal();
     });
+
     checkinInput.addEventListener('change', calculateTotal);
     checkoutInput.addEventListener('change', calculateTotal);
+
     reservationForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const newReservationData = {
@@ -195,17 +218,20 @@ export const initReservasPage = () => {
             alert("Falha ao criar reserva.");
         }
     });
+
     clearButton.addEventListener('click', () => {
         reservationForm.reset();
         updateAvailableRooms();
         totalReservaInput.value = 'R$ 0,00';
         valorDiariaInput.value = 'R$ 0,00';
     });
+
     searchInput.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
         const filteredData = state.reservations.filter(res => res.hospede.toLowerCase().includes(searchTerm) || res.cpf.includes(searchTerm));
         renderListReservas(filteredData);
     });
+
     updateAvailableRooms();
     renderListReservas();
 };
