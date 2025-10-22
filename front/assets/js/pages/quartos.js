@@ -75,26 +75,44 @@ export const initQuartosPage = () => {
     const searchInput = document.getElementById('search-input-quarto');
     roomForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const submitButton = roomForm.querySelector('button[type="submit"]');
+    
         const newRoomData = {
             numero: document.getElementById('numero-quarto').value,
             capacidade: parseInt(document.getElementById('capacidade').value),
             valor: parseFloat(document.getElementById('valor-diaria-quarto').value),
-            status: 'Disponível',
             obs: document.getElementById('observacoes').value
         };
+    
         try {
+            // Desabilita o botão para evitar cliques duplicados
+            submitButton.disabled = true;
+            submitButton.textContent = 'Salvando...';
+    
             const response = await fetch(`${API_BASE_URL}/api/quartos`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newRoomData)
             });
+    
+            if (!response.ok) {
+                const errorData = await response.json();
+                // Lança um erro com a mensagem vinda da API
+                throw new Error(errorData.message);
+            }
+    
             const createdRoom = await response.json();
             state.rooms.unshift(createdRoom);
             renderTableQuartos();
             roomForm.reset();
         } catch (error) {
             console.error("Erro ao criar quarto:", error);
-            alert("Falha ao criar novo quarto.");
+            // Exibe a mensagem de erro específica para o usuário
+            alert(error.message || "Falha ao criar novo quarto.");
+        } finally {
+            // Reabilita o botão e restaura o texto, ocorrendo erro ou não
+            submitButton.disabled = false;
+            submitButton.textContent = 'Salvar';
         }
     });
     clearButton.addEventListener('click', () => roomForm.reset());

@@ -10,7 +10,7 @@ const authWrapper = document.getElementById('auth-wrapper');
 const appWrapper = document.getElementById('app-wrapper');
 const userSession = document.getElementById('user-session');
 
-async function loadInitialDataAndInitPages() {
+export async function loadInitialDataAndInitPages() {
     try {
         const [quartosRes, reservasRes, usuariosRes] = await Promise.all([
             fetch(`${API_BASE_URL}/api/quartos`),
@@ -26,7 +26,6 @@ async function loadInitialDataAndInitPages() {
         initReservasPage();
         initUsuariosPage();
         applyPermissions();
-        showPage('page-nav-home');
 
     } catch (error) {
         console.error("Erro ao carregar dados iniciais:", error);
@@ -56,6 +55,9 @@ const login = async (username, password) => {
         const data = await response.json();
         if (data.success) {
             state.loggedInUser = data.user;
+            // SALVA o usuário no sessionStorage
+            sessionStorage.setItem('loggedInUser', JSON.stringify(data.user));
+
             authWrapper.classList.add('hidden');
             appWrapper.classList.remove('hidden');
             userSession.style.display = 'flex';
@@ -73,7 +75,15 @@ const login = async (username, password) => {
 };
 
 const logout = () => {
+    // Limpa completamente o estado da aplicação no front-end
     state.loggedInUser = null;
+    state.rooms = [];
+    state.reservations = [];
+    state.users = [];
+    // REMOVE o usuário do sessionStorage
+    sessionStorage.removeItem('loggedInUser');
+
+    // Redireciona para a tela de login
     appWrapper.classList.add('hidden');
     authWrapper.classList.remove('hidden');
     userSession.style.display = 'none';

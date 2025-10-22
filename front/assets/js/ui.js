@@ -47,6 +47,8 @@ const pages = document.querySelectorAll('.page-content');
 const userProfileButton = document.getElementById('user-profile-button');
 
 export const showPage = (pageId) => {
+    sessionStorage.setItem('lastPageId', pageId);
+
     pages.forEach(page => page.classList.add('hidden'));
     const pageToShow = document.getElementById(pageId);
     if(pageToShow) pageToShow.classList.remove('hidden');
