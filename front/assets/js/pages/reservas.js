@@ -1,6 +1,7 @@
 import { state } from '../state.js';
 import { openModal, closeModal, getStatusBadgeReserva } from '../ui.js';
 import API_BASE_URL from '../api.js';
+import { validarCPF } from './utils.js'; // IMPORTAÇÃO DA VALIDAÇÃO DE CPF
 
 const renderListReservas = (data = state.reservations) => {
     const reservationList = document.getElementById('reservation-list');
@@ -48,13 +49,23 @@ const editReservation = (id) => {
     formNode.querySelector('#edit-res-quarto').value = res.quarto;
     formNode.querySelector('#edit-res-referencia').value = res.referencia;
     formNode.querySelector('#edit-res-status').value = res.status;
+
+    // Aplica máscaras aos campos do modal
+    IMask(formNode.querySelector('#edit-res-cpf'), { mask: '000.000.000-00' });
+    IMask(formNode.querySelector('#edit-res-telefone'), { mask: '(00) 00000-0000' });
+
     const footerButtons = [
         { text: 'Cancelar', classes: 'px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300', onClick: closeModal },
         {
             text: 'Salvar Alterações', classes: 'px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600', onClick: async () => {
+                const cpfValor = formNode.querySelector('#edit-res-cpf').value;
+                if (!validarCPF(cpfValor)) {
+                    alert('O CPF informado é inválido. Por favor, verifique.');
+                    return;
+                }
                 const updatedResData = {
                     hospede: formNode.querySelector('#edit-res-hospede').value,
-                    cpf: formNode.querySelector('#edit-res-cpf').value,
+                    cpf: cpfValor,
                     telefone: formNode.querySelector('#edit-res-telefone').value,
                     qtdPessoas: parseInt(formNode.querySelector('#edit-res-qtd-pessoas').value),
                     checkIn: formNode.querySelector('#edit-res-checkin').value,
@@ -114,6 +125,13 @@ const cancelReservation = (id) => {
 export const initReservasPage = () => {
     window.editReservation = editReservation;
     window.cancelReservation = cancelReservation;
+
+    // APLICAÇÃO DAS MÁSCARAS
+    const cpfInput = document.getElementById('cpf');
+    const telefoneInput = document.getElementById('telefone');
+    IMask(cpfInput, { mask: '000.000.000-00' });
+    IMask(telefoneInput, { mask: '(00) 00000-0000' });
+
     const reservationForm = document.getElementById('reservation-form');
     const clearButton = document.getElementById('clear-button-reserva');
     const searchInput = document.getElementById('search-input-reserva');
@@ -123,24 +141,21 @@ export const initReservasPage = () => {
     const checkinInput = document.getElementById('check-in');
     const checkoutInput = document.getElementById('check-out');
 
+    // VALIDAÇÃO DE DATAS
     const hoje = new Date().toISOString().split('T')[0];
     checkinInput.setAttribute('min', hoje);
-
     checkinInput.addEventListener('change', () => {
         if (checkinInput.value) {
-            // Libera o campo de check-out e define a data mínima
             checkoutInput.disabled = false;
             checkoutInput.setAttribute('min', checkinInput.value);
         } else {
-            // Bloqueia e limpa o campo de check-out se o check-in for limpo
             checkoutInput.disabled = true;
             checkoutInput.value = '';
         }
         calculateTotal();
     });
-
     checkoutInput.disabled = true;
-
+    
     const updateAvailableRooms = () => {
         quartoSelect.innerHTML = '<option value="">Selecione um quarto</option>';
         state.rooms.filter(r => r.status === 'Disponível').forEach(room => {
@@ -151,7 +166,6 @@ export const initReservasPage = () => {
             quartoSelect.appendChild(option);
         });
     };
-
     const calculateTotal = () => {
         const checkinDate = new Date(checkinInput.value);
         const checkoutDate = new Date(checkoutInput.value);
@@ -170,7 +184,6 @@ export const initReservasPage = () => {
             totalReservaInput.value = 'R$ 0,00';
         }
     };
-
     quartoSelect.addEventListener('change', () => {
         const selectedOption = quartoSelect.options[quartoSelect.selectedIndex];
         if (selectedOption.value) {
@@ -180,18 +193,25 @@ export const initReservasPage = () => {
         }
         calculateTotal();
     });
-
     checkinInput.addEventListener('change', calculateTotal);
     checkoutInput.addEventListener('change', calculateTotal);
-
+    
     reservationForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        // VALIDAÇÃO DE CPF ANTES DO ENVIO
+        const cpfValor = document.getElementById('cpf').value;
+        if (!validarCPF(cpfValor)) {
+            alert('O CPF informado é inválido. Por favor, verifique.');
+            return; // Impede o envio
+        }
+
         const newReservationData = {
             quarto: quartoSelect.value,
             checkIn: checkinInput.value,
             checkOut: checkoutInput.value,
             hospede: document.getElementById('nome-hospede').value,
-            cpf: document.getElementById('cpf').value,
+            cpf: cpfValor,
             telefone: document.getElementById('telefone').value,
             qtdPessoas: parseInt(document.getElementById('qtd-pessoas').value),
             total: parseFloat(totalReservaInput.value.replace('R$ ', '').replace(',', '.')),
@@ -204,6 +224,10 @@ export const initReservasPage = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newReservationData)
             });
+             if (!response.ok) { // TRATAMENTO DE ERROS DO BACK-END
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Falha ao criar reserva.');
+            }
             const createdReservation = await response.json();
             state.reservations.unshift(createdReservation);
             const roomToBook = state.rooms.find(r => r.numero === createdReservation.quarto);
@@ -215,23 +239,20 @@ export const initReservasPage = () => {
             valorDiariaInput.value = 'R$ 0,00';
         } catch (error) {
             console.error("Erro ao criar reserva:", error);
-            alert("Falha ao criar reserva.");
+            alert(error.message); // Exibe a mensagem de erro da API
         }
     });
-
     clearButton.addEventListener('click', () => {
         reservationForm.reset();
         updateAvailableRooms();
         totalReservaInput.value = 'R$ 0,00';
         valorDiariaInput.value = 'R$ 0,00';
     });
-
     searchInput.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
         const filteredData = state.reservations.filter(res => res.hospede.toLowerCase().includes(searchTerm) || res.cpf.includes(searchTerm));
         renderListReservas(filteredData);
     });
-
     updateAvailableRooms();
     renderListReservas();
 };

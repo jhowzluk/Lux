@@ -2,6 +2,7 @@ import { state } from '../state.js';
 import { openModal, closeModal } from '../ui.js';
 import { renderTableUsuarios } from './renderer.js';
 import API_BASE_URL from '../api.js';
+import { validarCPF } from './utils.js'; // IMPORTAÇÃO DA VALIDAÇÃO DE CPF
 
 const editUser = (id) => {
     const user = state.users.find(u => u.id === id);
@@ -13,6 +14,9 @@ const editUser = (id) => {
     formNode.querySelector('#edit-user-email').value = user.email;
     formNode.querySelector('#edit-user-access-type').value = user.tipoAcesso;
     formNode.querySelector('#edit-user-status').value = user.status;
+
+    // Aplica máscara ao CPF no modal de edição
+    IMask(formNode.querySelector('#edit-user-cpf'), { mask: '000.000.000-00' });
 
     const footerButtons = [
         { text: 'Cancelar', classes: 'px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300', onClick: closeModal },
@@ -82,20 +86,35 @@ const inactivateUser = (id) => {
 export const initUsuariosPage = () => {
     window.editUser = editUser;
     window.inactivateUser = inactivateUser;
+
+    // APLICAÇÃO DA MÁSCARA
+    const cpfUsuarioInput = document.getElementById('cpf-usuario');
+    IMask(cpfUsuarioInput, { mask: '000.000.000-00' });
+
     const userForm = document.getElementById('user-form');
     const clearButton = document.getElementById('clear-button-usuario');
     const searchInput = document.getElementById('search-input-usuario');
     const passwordInput = document.getElementById('senha-usuario');
     const confirmPasswordInput = document.getElementById('repita-senha-usuario');
+    
     userForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        
         if (passwordInput.value !== confirmPasswordInput.value) {
             alert('As senhas não conferem.');
             return;
         }
+
+        // VALIDAÇÃO DE CPF ANTES DO ENVIO
+        const cpfValor = document.getElementById('cpf-usuario').value;
+        if (!validarCPF(cpfValor)) {
+            alert('O CPF informado é inválido. Por favor, verifique.');
+            return; // Impede o envio
+        }
+
         const newUserData = {
             nome: document.getElementById('nome-usuario').value,
-            cpf: document.getElementById('cpf-usuario').value,
+            cpf: cpfValor,
             email: document.getElementById('email-usuario').value,
             usuario: document.getElementById('login-usuario').value,
             senha: passwordInput.value,

@@ -1,10 +1,32 @@
 const { reservations, rooms } = require('../database/mock');
 let { nextReservationId } = require('../database/mock');
 
-const isCpfValido = (cpf) => {
+// FUNÇÃO DE VALIDAÇÃO DE CPF COMPLETA
+const validarCPF = (cpf) => {
     if (!cpf) return false;
-    const cpfRegex = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/;
-    return cpfRegex.test(cpf);
+    const cpfLimpo = cpf.replace(/[^\d]/g, ''); // Remove máscara
+
+    if (cpfLimpo.length !== 11) return false;
+    // Elimina CPFs inválidos conhecidos (todos os dígitos iguais)
+    if (/^(\d)\1{10}$/.test(cpfLimpo)) return false;
+
+    let soma = 0;
+    let resto;
+
+    // Valida primeiro dígito
+    for (let i = 1; i <= 9; i++) soma += parseInt(cpfLimpo.substring(i - 1, i)) * (11 - i);
+    resto = (soma * 10) % 11;
+    if (resto === 10 || resto === 11) resto = 0;
+    if (resto !== parseInt(cpfLimpo.substring(9, 10))) return false;
+
+    soma = 0;
+    // Valida segundo dígito
+    for (let i = 1; i <= 10; i++) soma += parseInt(cpfLimpo.substring(i - 1, i)) * (12 - i);
+    resto = (soma * 10) % 11;
+    if (resto === 10 || resto === 11) resto = 0;
+    if (resto !== parseInt(cpfLimpo.substring(10, 11))) return false;
+
+    return true;
 };
 
 exports.getAllReservas = (req, res) => {
@@ -12,14 +34,16 @@ exports.getAllReservas = (req, res) => {
 };
 
 exports.createReserva = (req, res) => {
-    const { hospede, cpf, checkIn, checkOut, qtdPessoas, quarto: numeroQuarto } = req.body;
+    const { hospede, cpf, checkIn, checkOut, qtdPessoas, quarto: numeroQuarto, total } = req.body;
 
+    // --- Início da Validação no Back-end ---
     if (!hospede || !cpf || !checkIn || !checkOut || !qtdPessoas || !numeroQuarto) {
         return res.status(400).json({ message: 'Todos os campos obrigatórios devem ser preenchidos.' });
     }
 
-    if (!isCpfValido(cpf)) {
-        return res.status(400).json({ message: 'O formato do CPF é inválido.' });
+    // VALIDAÇÃO DE CPF ATUALIZADA
+    if (!validarCPF(cpf)) {
+        return res.status(400).json({ message: 'O CPF informado é inválido.' });
     }
 
     const checkinDate = new Date(checkIn);
@@ -43,6 +67,12 @@ exports.createReserva = (req, res) => {
     if (parseInt(qtdPessoas, 10) > quartoSelecionado.capacidade) {
         return res.status(400).json({ message: `A quantidade de pessoas excede a capacidade do quarto (máx: ${quartoSelecionado.capacidade}).` });
     }
+    
+    // Validação de Total (exemplo simples)
+    if (parseFloat(total) <= 0) {
+         return res.status(400).json({ message: 'O valor total da reserva parece incorreto.' });
+    }
+    // --- Fim da Validação ---
 
     const newReservation = { ...req.body, id: nextReservationId++ };
     reservations.unshift(newReservation);
@@ -63,6 +93,11 @@ exports.updateReserva = (req, res) => {
 
     if (resIndex === -1) {
         return res.status(404).json({ message: 'Reserva não encontrada.' });
+    }
+
+    // VALIDAÇÃO DE CPF NA ATUALIZAÇÃO
+    if (updatedData.cpf && !validarCPF(updatedData.cpf)) {
+         return res.status(400).json({ message: 'O CPF informado é inválido.' });
     }
 
     const originalRes = reservations[resIndex];
