@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { openModal, closeModal, getStatusBadgeReserva } from '../ui.js';
 import API_BASE_URL from '../api.js';
-import { validarCPF } from './utils.js'; // IMPORTAÇÃO DA VALIDAÇÃO DE CPF
+import { validarCPF } from '../utils.js';
 
 const renderListReservas = (data = state.reservations) => {
     const reservationList = document.getElementById('reservation-list');
