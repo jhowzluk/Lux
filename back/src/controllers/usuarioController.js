@@ -1,9 +1,8 @@
-const db = require('../database/db'); // Importa a nossa ligação ao DB
+const db = require('../database/db');
 const bcrypt = require('bcrypt');
 
-const saltRounds = 10; // Custo do processamento do hash
+const saltRounds = 10;
 
-// (A sua função validarCPF continua igual)
 const validarCPF = (cpf) => {
     if (!cpf) return false;
     const cpfLimpo = cpf.replace(/[^\d]/g, '');
@@ -41,7 +40,6 @@ exports.getAllUsuarios = async (req, res) => {
 exports.createUsuario = async (req, res) => {
     const { email, cpf, nome, usuario, senha, tipoAcesso } = req.body;
 
-    // --- Validação ---
     if (!nome || !usuario || !senha || !email || !cpf) {
          return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
     }
@@ -50,7 +48,6 @@ exports.createUsuario = async (req, res) => {
     }
 
     try {
-        // --- Verificação de Duplicados ---
         const [existing] = await db.query(
             "SELECT * FROM usuarios WHERE email = ? OR cpf = ? OR usuario = ?", 
             [email, cpf, usuario]
@@ -59,10 +56,8 @@ exports.createUsuario = async (req, res) => {
             return res.status(409).json({ message: 'Usuário com este e-mail, CPF ou nome de utilizador já existe.' });
         }
 
-        // --- Criptografar Senha ---
         const senhaHash = await bcrypt.hash(senha, saltRounds);
 
-        // --- Inserir no Banco ---
         const [result] = await db.query(
             "INSERT INTO usuarios (nome, cpf, email, usuario, senha, tipoAcesso, status) VALUES (?, ?, ?, ?, ?, ?, 'Ativo')",
             [nome, cpf, email, usuario, senhaHash, tipoAcesso]
@@ -84,27 +79,47 @@ exports.createUsuario = async (req, res) => {
 
 exports.updateUsuario = async (req, res) => {
     const { id } = req.params;
-    const { nome, email, tipoAcesso, status } = req.body; // Apenas os campos que permitimos editar
+    const { nome, email, tipoAcesso, status, senha } = req.body; // Agora pegamos a senha também
 
-    if (email === '' || nome === '') {
+    // Validações básicas
+    if ((email !== undefined && email === '') || (nome !== undefined && nome === '')) {
          return res.status(400).json({ message: 'Nome e E-mail não podem ficar em branco.' });
     }
 
     try {
         // Verifica se o e-mail já está em uso por OUTRO utilizador
-        const [existing] = await db.query(
-            "SELECT * FROM usuarios WHERE email = ? AND id != ?",
-            [email, id]
-        );
-        if(existing.length > 0) {
-            return res.status(409).json({ message: 'Este e-mail já está em uso por outro utilizador.' });
+        if (email) {
+            const [existing] = await db.query(
+                "SELECT * FROM usuarios WHERE email = ? AND id != ?",
+                [email, id]
+            );
+            if(existing.length > 0) {
+                return res.status(409).json({ message: 'Este e-mail já está em uso por outro utilizador.' });
+            }
         }
         
-        // Atualiza o utilizador
-        await db.query(
-            "UPDATE usuarios SET nome = ?, email = ?, tipoAcesso = ?, status = ? WHERE id = ?",
-            [nome, email, tipoAcesso, status, id]
-        );
+        // Monta a query dinamicamente baseada no que foi enviado
+        let query = "UPDATE usuarios SET ";
+        const params = [];
+        
+        if (nome) { query += "nome = ?, "; params.push(nome); }
+        if (email) { query += "email = ?, "; params.push(email); }
+        if (tipoAcesso) { query += "tipoAcesso = ?, "; params.push(tipoAcesso); }
+        if (status) { query += "status = ?, "; params.push(status); }
+        
+        // Se enviou senha, criptografa e adiciona à query
+        if (senha) { 
+            const senhaHash = await bcrypt.hash(senha, saltRounds);
+            query += "senha = ?, "; 
+            params.push(senhaHash); 
+        }
+
+        // Remove a última vírgula e adiciona o WHERE
+        query = query.slice(0, -2); 
+        query += " WHERE id = ?";
+        params.push(id);
+
+        await db.query(query, params);
         
         // Devolve o utilizador atualizado
         const [updatedRows] = await db.query("SELECT * FROM usuarios WHERE id = ?", [id]);

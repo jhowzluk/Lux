@@ -2,6 +2,7 @@ import { state } from '../state.js';
 import { openModal, closeModal } from '../ui.js';
 import { renderTableQuartos } from './renderer.js';
 import API_BASE_URL from '../api.js';
+import { refreshRoomOptions } from './reservas.js'; 
 
 const editRoom = (id) => {
     const room = state.rooms.find(r => r.id === id);
@@ -10,7 +11,6 @@ const editRoom = (id) => {
     formNode.querySelector('#edit-room-id').value = room.id;
     formNode.querySelector('#edit-numero-quarto').value = room.numero;
     formNode.querySelector('#edit-capacidade').value = room.capacidade;
-    // CORREÇÃO AQUI: parseFloat(room.valor)
     formNode.querySelector('#edit-valor-diaria-quarto').value = parseFloat(room.valor).toFixed(2);
     formNode.querySelector('#edit-status').value = room.status;
     formNode.querySelector('#edit-observacoes').value = room.obs;
@@ -34,7 +34,10 @@ const editRoom = (id) => {
                     });
                     const updatedRoomFromServer = await response.json();
                     state.rooms = state.rooms.map(r => r.id === updatedRoomFromServer.id ? updatedRoomFromServer : r);
+                    
                     renderTableQuartos();
+                    refreshRoomOptions(); // <-- ATUALIZA O COMBO NA TELA DE RESERVAS
+                    
                     closeModal();
                 } catch (error) {
                     console.error("Erro ao atualizar quarto:", error);
@@ -62,7 +65,10 @@ const deleteRoom = (id) => {
                     }
 
                     state.rooms = state.rooms.filter(room => room.id !== id);
+                    
                     renderTableQuartos();
+                    refreshRoomOptions(); // <-- ATUALIZA O COMBO NA TELA DE RESERVAS
+                    
                     closeModal();
                 } catch (error) {
                     console.error("Erro ao excluir quarto:", error);
@@ -117,7 +123,10 @@ export const initQuartosPage = () => {
     
             const createdRoom = await response.json();
             state.rooms.unshift(createdRoom);
+            
             renderTableQuartos();
+            refreshRoomOptions(); // <-- ATUALIZA O COMBO NA TELA DE RESERVAS
+            
             roomForm.reset();
         } catch (error) {
             console.error("Erro ao criar quarto:", error);
