@@ -10,7 +10,8 @@ const editRoom = (id) => {
     formNode.querySelector('#edit-room-id').value = room.id;
     formNode.querySelector('#edit-numero-quarto').value = room.numero;
     formNode.querySelector('#edit-capacidade').value = room.capacidade;
-    formNode.querySelector('#edit-valor-diaria-quarto').value = room.valor.toFixed(2);
+    // CORREÇÃO AQUI: parseFloat(room.valor)
+    formNode.querySelector('#edit-valor-diaria-quarto').value = parseFloat(room.valor).toFixed(2);
     formNode.querySelector('#edit-status').value = room.status;
     formNode.querySelector('#edit-observacoes').value = room.obs;
 
@@ -51,15 +52,21 @@ const deleteRoom = (id) => {
         {
             text: 'Excluir', classes: 'px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600', onClick: async () => {
                 try {
-                    await fetch(`${API_BASE_URL}/api/quartos/${id}`, {
+                    const response = await fetch(`${API_BASE_URL}/api/quartos/${id}`, {
                         method: 'DELETE'
                     });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || 'Erro ao excluir quarto');
+                    }
+
                     state.rooms = state.rooms.filter(room => room.id !== id);
                     renderTableQuartos();
                     closeModal();
                 } catch (error) {
                     console.error("Erro ao excluir quarto:", error);
-                    alert("Falha ao excluir quarto.");
+                    alert(error.message || "Falha ao excluir quarto.");
                 }
             }
         }
@@ -70,9 +77,18 @@ const deleteRoom = (id) => {
 export const initQuartosPage = () => {
     window.editRoom = editRoom;
     window.deleteRoom = deleteRoom;
+
+    renderTableQuartos();
+
     const roomForm = document.getElementById('room-form');
     const clearButton = document.getElementById('clear-button-quarto');
     const searchInput = document.getElementById('search-input-quarto');
+
+    if (roomForm.getAttribute('data-listeners-added') === 'true') {
+        return;
+    }
+    roomForm.setAttribute('data-listeners-added', 'true');
+
     roomForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const submitButton = roomForm.querySelector('button[type="submit"]');
@@ -85,7 +101,6 @@ export const initQuartosPage = () => {
         };
     
         try {
-            // Desabilita o botão para evitar cliques duplicados
             submitButton.disabled = true;
             submitButton.textContent = 'Salvando...';
     
@@ -97,7 +112,6 @@ export const initQuartosPage = () => {
     
             if (!response.ok) {
                 const errorData = await response.json();
-                // Lança um erro com a mensagem vinda da API
                 throw new Error(errorData.message);
             }
     
@@ -107,19 +121,17 @@ export const initQuartosPage = () => {
             roomForm.reset();
         } catch (error) {
             console.error("Erro ao criar quarto:", error);
-            // Exibe a mensagem de erro específica para o usuário
             alert(error.message || "Falha ao criar novo quarto.");
         } finally {
-            // Reabilita o botão e restaura o texto, ocorrendo erro ou não
             submitButton.disabled = false;
             submitButton.textContent = 'Salvar';
         }
     });
+
     clearButton.addEventListener('click', () => roomForm.reset());
     searchInput.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
         const filteredData = state.rooms.filter(room => Object.values(room).some(val => String(val).toLowerCase().includes(searchTerm)));
         renderTableQuartos(filteredData);
     });
-    renderTableQuartos();
 };

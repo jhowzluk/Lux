@@ -15,7 +15,8 @@ export const renderTableQuartos = (data = state.rooms) => {
             ? `<td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium"><button class="text-indigo-600 hover:text-indigo-900" onclick="window.editRoom(${room.id})" title="Editar"><i data-lucide="edit" class="w-4 h-4"></i></button><button class="text-red-600 hover:text-red-900 ml-4" onclick="window.deleteRoom(${room.id})" title="Excluir"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>`
             : `<td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium"> - </td>`;
 
-        row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${room.numero}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${room.capacidade}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">R$ ${room.valor.toFixed(2).replace('.', ',')}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${getStatusBadgeQuarto(room.status)}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 max-w-xs truncate" title="${room.obs}">${room.obs || '-'}</td>${actionsHtml}`;
+        // CORREÇÃO AQUI: parseFloat(room.valor)
+        row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${room.numero}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${room.capacidade}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">R$ ${parseFloat(room.valor).toFixed(2).replace('.', ',')}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${getStatusBadgeQuarto(room.status)}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 max-w-xs truncate" title="${room.obs}">${room.obs || '-'}</td>${actionsHtml}`;
         tableBody.appendChild(row);
     });
     lucide.createIcons();
