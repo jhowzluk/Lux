@@ -2,7 +2,8 @@ import { state } from '../state.js';
 import { openModal, closeModal } from '../ui.js';
 import { renderTableUsuarios } from './renderer.js';
 import API_BASE_URL from '../api.js';
-import { validarCPF } from '../utils.js';
+import { validarCPF } from '../utils.js'; 
+import { showToast } from '../toast.js';
 
 const editUser = (id) => {
     const user = state.users.find(u => u.id === id);
@@ -15,7 +16,6 @@ const editUser = (id) => {
     formNode.querySelector('#edit-user-access-type').value = user.tipoAcesso;
     formNode.querySelector('#edit-user-status').value = user.status;
 
-    // Aplica máscara ao CPF no modal de edição
     IMask(formNode.querySelector('#edit-user-cpf'), { mask: '000.000.000-00' });
 
     const footerButtons = [
@@ -37,10 +37,11 @@ const editUser = (id) => {
                     const updatedUserFromServer = await response.json();
                     state.users = state.users.map(u => u.id === updatedUserFromServer.id ? updatedUserFromServer : u);
                     renderTableUsuarios();
+                    showToast('Usuário atualizado com sucesso!', 'success');
                     closeModal();
                 } catch (error) {
                     console.error("Erro ao atualizar usuário:", error);
-                    alert("Falha ao atualizar usuário.");
+                    showToast("Falha ao atualizar usuário.", 'error');
                 }
             }
         }
@@ -50,7 +51,7 @@ const editUser = (id) => {
 
 const inactivateUser = (id) => {
     if (state.loggedInUser && id === state.loggedInUser.id) {
-        alert("Você não pode inativar seu próprio usuário.");
+        showToast("Você não pode inativar seu próprio usuário.", 'info');
         return;
     }
     const user = state.users.find(u => u.id === id);
@@ -71,10 +72,11 @@ const inactivateUser = (id) => {
                     const updatedUserFromServer = await response.json();
                     state.users = state.users.map(u => u.id === updatedUserFromServer.id ? updatedUserFromServer : u);
                     renderTableUsuarios();
+                    showToast('Usuário inativado.', 'success');
                     closeModal();
                 } catch (error) {
                     console.error("Erro ao inativar usuário:", error);
-                    alert("Falha ao inativar usuário.");
+                    showToast("Falha ao inativar usuário.", 'error');
                 }
             }
         }
@@ -87,29 +89,35 @@ export const initUsuariosPage = () => {
     window.editUser = editUser;
     window.inactivateUser = inactivateUser;
 
-    // APLICAÇÃO DA MÁSCARA
-    const cpfUsuarioInput = document.getElementById('cpf-usuario');
-    IMask(cpfUsuarioInput, { mask: '000.000.000-00' });
+    renderTableUsuarios();
 
     const userForm = document.getElementById('user-form');
     const clearButton = document.getElementById('clear-button-usuario');
     const searchInput = document.getElementById('search-input-usuario');
     const passwordInput = document.getElementById('senha-usuario');
     const confirmPasswordInput = document.getElementById('repita-senha-usuario');
+    const cpfUsuarioInput = document.getElementById('cpf-usuario');
+
+    if (userForm.getAttribute('data-listeners-added') === 'true') {
+        return;
+    }
+    userForm.setAttribute('data-listeners-added', 'true');
+
+    IMask(cpfUsuarioInput, { mask: '000.000.000-00' });
     
     userForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const submitButton = userForm.querySelector('button[type="submit"]');
         
         if (passwordInput.value !== confirmPasswordInput.value) {
-            alert('As senhas não conferem.');
+            showToast('As senhas não conferem.', 'error');
             return;
         }
 
-        // VALIDAÇÃO DE CPF ANTES DO ENVIO
         const cpfValor = document.getElementById('cpf-usuario').value;
         if (!validarCPF(cpfValor)) {
-            alert('O CPF informado é inválido. Por favor, verifique.');
-            return; // Impede o envio
+            showToast('O CPF informado é inválido. Por favor, verifique.', 'error');
+            return; 
         }
 
         const newUserData = {
@@ -121,7 +129,11 @@ export const initUsuariosPage = () => {
             tipoAcesso: document.getElementById('tipo-acesso-usuario').value,
             status: 'Ativo'
         };
+
         try {
+            submitButton.disabled = true;
+            submitButton.textContent = 'Salvando...';
+
             const response = await fetch(`${API_BASE_URL}/api/usuarios`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -137,17 +149,21 @@ export const initUsuariosPage = () => {
 
             state.users.unshift(createdUser);
             renderTableUsuarios();
+            showToast('Usuário salvo com sucesso!', 'success');
             userForm.reset();
         } catch (error) {
             console.error("Erro ao criar usuário:", error);
-            alert(error.message);
+            showToast(error.message, 'error');
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = 'Salvar';
         }
     });
+
     clearButton.addEventListener('click', () => userForm.reset());
     searchInput.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
         const filteredData = state.users.filter(user => Object.values(user).some(val => String(val).toLowerCase().includes(searchTerm)));
         renderTableUsuarios(filteredData);
     });
-    renderTableUsuarios();
 };

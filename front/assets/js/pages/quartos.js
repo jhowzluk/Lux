@@ -2,7 +2,8 @@ import { state } from '../state.js';
 import { openModal, closeModal } from '../ui.js';
 import { renderTableQuartos } from './renderer.js';
 import API_BASE_URL from '../api.js';
-import { refreshRoomOptions } from './reservas.js'; 
+import { fetchEAtualizarQuartosDisponiveis } from './reservas.js';
+import { showToast } from '../toast.js'; 
 
 const editRoom = (id) => {
     const room = state.rooms.find(r => r.id === id);
@@ -32,16 +33,23 @@ const editRoom = (id) => {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(updatedRoomData)
                     });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || 'Falha ao atualizar quarto.');
+                    }
+
                     const updatedRoomFromServer = await response.json();
                     state.rooms = state.rooms.map(r => r.id === updatedRoomFromServer.id ? updatedRoomFromServer : r);
                     
                     renderTableQuartos();
-                    refreshRoomOptions(); // <-- ATUALIZA O COMBO NA TELA DE RESERVAS
+                    fetchEAtualizarQuartosDisponiveis(); // <-- NOME DA FUNÇÃO ATUALIZADO
                     
+                    showToast('Quarto atualizado com sucesso!', 'success');
                     closeModal();
                 } catch (error) {
                     console.error("Erro ao atualizar quarto:", error);
-                    alert("Falha ao atualizar quarto.");
+                    showToast(error.message, 'error');
                 }
             }
         }
@@ -67,12 +75,13 @@ const deleteRoom = (id) => {
                     state.rooms = state.rooms.filter(room => room.id !== id);
                     
                     renderTableQuartos();
-                    refreshRoomOptions(); // <-- ATUALIZA O COMBO NA TELA DE RESERVAS
+                    fetchEAtualizarQuartosDisponiveis(); // <-- NOME DA FUNÇÃO ATUALIZADO
                     
+                    showToast('Quarto excluído com sucesso!', 'success');
                     closeModal();
                 } catch (error) {
                     console.error("Erro ao excluir quarto:", error);
-                    alert(error.message || "Falha ao excluir quarto.");
+                    showToast(error.message, 'error');
                 }
             }
         }
@@ -125,12 +134,13 @@ export const initQuartosPage = () => {
             state.rooms.unshift(createdRoom);
             
             renderTableQuartos();
-            refreshRoomOptions(); // <-- ATUALIZA O COMBO NA TELA DE RESERVAS
+            fetchEAtualizarQuartosDisponiveis(); // <-- NOME DA FUNÇÃO ATUALIZADO
             
+            showToast('Quarto salvo com sucesso!', 'success');
             roomForm.reset();
         } catch (error) {
             console.error("Erro ao criar quarto:", error);
-            alert(error.message || "Falha ao criar novo quarto.");
+            showToast(error.message || "Falha ao criar novo quarto.", 'error');
         } finally {
             submitButton.disabled = false;
             submitButton.textContent = 'Salvar';

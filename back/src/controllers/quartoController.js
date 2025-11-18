@@ -10,6 +10,47 @@ exports.getAllQuartos = async (req, res) => {
     }
 };
 
+// --- NOVA FUNÇÃO ADICIONADA ---
+exports.getQuartosDisponiveis = async (req, res) => {
+    const { checkIn, checkOut, capacidade } = req.query;
+
+    if (!checkIn || !checkOut || !capacidade) {
+        return res.status(400).json({ message: 'Datas e capacidade são obrigatórios.' });
+    }
+
+    try {
+        // Esta é a consulta principal. Ela seleciona quartos que:
+        // 1. Têm a capacidade necessária.
+        // 2. Têm o status 'Disponível' (para manutenção, etc.).
+        // 3. E (o mais importante) NÃO ESTÃO (NOT IN) na lista de quartos que já possuem
+        //    uma reserva conflitante no período selecionado.
+        const [rows] = await db.query(
+            `
+            SELECT * FROM quartos
+            WHERE 
+                capacidade >= ? 
+                AND status = 'Disponível'
+                AND numero NOT IN (
+                    SELECT DISTINCT quarto_numero FROM reservas
+                    WHERE 
+                        status NOT IN ('Cancelada', 'Check-out')
+                        AND checkIn < ? 
+                        AND checkOut > ?
+                )
+            ORDER BY numero ASC
+            `,
+            [capacidade, checkOut, checkIn] // Note a ordem: checkOut, checkIn
+        );
+        
+        res.json(rows);
+
+    } catch (error) {
+        console.error("Erro ao filtrar quartos disponíveis:", error);
+        res.status(500).json({ message: 'Erro interno ao filtrar quartos.' });
+    }
+};
+// --- FIM DA NOVA FUNÇÃO ---
+
 exports.createQuarto = async (req, res) => {
     const { numero, capacidade, valor, obs } = req.body;
 
@@ -21,13 +62,11 @@ exports.createQuarto = async (req, res) => {
     }
 
     try {
-        // Verifica duplicidade
         const [existing] = await db.query("SELECT * FROM quartos WHERE numero = ?", [numero]);
         if (existing.length > 0) {
             return res.status(409).json({ message: 'Já existe um quarto com este número.' });
         }
 
-        // Insere no banco
         const [result] = await db.query(
             "INSERT INTO quartos (numero, capacidade, valor, status, obs) VALUES (?, ?, ?, 'Disponível', ?)",
             [numero, capacidade, valor, obs]
@@ -47,7 +86,6 @@ exports.updateQuarto = async (req, res) => {
     const { numero, capacidade, valor, status, obs } = req.body;
 
     try {
-        // Verifica duplicidade de número com outros quartos
         const [existing] = await db.query(
             "SELECT * FROM quartos WHERE numero = ? AND id != ?", 
             [numero, id]
@@ -65,7 +103,6 @@ exports.updateQuarto = async (req, res) => {
             return res.status(404).json({ message: 'Quarto não encontrado.' });
         }
 
-        // Retorna o quarto atualizado
         const [updatedRows] = await db.query("SELECT * FROM quartos WHERE id = ?", [id]);
         res.json(updatedRows[0]);
 
@@ -79,7 +116,6 @@ exports.deleteQuarto = async (req, res) => {
     const { id } = req.params;
 
     try {
-        // Primeiro, precisamos saber o número do quarto para verificar as reservas
         const [roomRows] = await db.query("SELECT numero FROM quartos WHERE id = ?", [id]);
         
         if (roomRows.length === 0) {
@@ -88,7 +124,6 @@ exports.deleteQuarto = async (req, res) => {
 
         const numeroQuarto = roomRows[0].numero;
 
-        // Verifica se há reservas associadas a este quarto
         const [reservations] = await db.query("SELECT id FROM reservas WHERE quarto_numero = ?", [numeroQuarto]);
         
         if (reservations.length > 0) {

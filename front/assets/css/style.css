@@ -1,33 +1,72 @@
-:root { 
-    --hotel-gold: #FFC72C; 
-    --hotel-gold-dark: #DAA520; 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:ital@1&display=swap');
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #F8F9FA;
 }
-body { 
-    font-family: 'Inter', sans-serif; 
-    background-color: #f8f9fa; 
+
+.nav-link-active,
+.profile-btn-active {
+    color: white !important;
 }
-.nav-link-active { 
-    font-weight: bold; 
-    color: white !important; 
+
+.modal-backdrop {
+    animation: fadeIn 0.15s ease-out;
 }
-.profile-btn-active { 
-    background-color: #333; 
-    color: white; 
+.modal-panel {
+    animation: slideIn 0.2s ease-out;
 }
-.modal-panel { 
-    animation: slide-up 0.3s ease-out; 
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
-.modal-backdrop { 
-    animation: fade-in 0.3s ease-out; 
+@keyframes slideIn {
+    from { transform: translateY(-30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }
-@keyframes slide-up { 
-    from { transform: translateY(20px); opacity: 0; } 
-    to { transform: translateY(0); opacity: 1; } 
+
+/* --- Toast Notification Styles --- */
+.toast {
+    padding: 1rem 1.5rem;
+    border-radius: 0.5rem; /* 8px */
+    font-weight: 500;
+    color: white;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    opacity: 0;
+    transform: translateX(100%);
+    animation: toast-slide-in 0.3s ease-out forwards, toast-fade-out 0.3s ease-in 3s forwards;
 }
-@keyframes fade-in { 
-    from { opacity: 0; } 
-    to { opacity: 1; } 
+
+.toast-success {
+    background-color: #28a745; /* Green */
 }
-.page-content { 
-    animation: fade-in 0.5s ease-out; 
+
+.toast-error {
+    background-color: #dc3545; /* Red */
+}
+
+.toast-info {
+    background-color: #17a2b8; /* Blue */
+}
+
+@keyframes toast-slide-in {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes toast-fade-out {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+        /* We don't need to slide it out, just fade */
+    }
 }

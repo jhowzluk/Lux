@@ -1,11 +1,10 @@
 import { state } from '../state.js';
 import API_BASE_URL from '../api.js';
+import { showToast } from '../toast.js';
 
 export const initContaPage = () => {
     if (!state.loggedInUser) return; 
 
-    // 1. Limpeza de Listeners (Nuclear Option)
-    // Fazemos a substituição do formulário logo no início para garantir um DOM limpo.
     const oldForm = document.getElementById('account-form');
     const oldCancelBtn = document.getElementById('cancel-account-button');
 
@@ -15,36 +14,41 @@ export const initContaPage = () => {
     const cancelButton = oldCancelBtn.cloneNode(true);
     oldCancelBtn.replaceWith(cancelButton);
 
-    // 2. Captura dos Elementos (Agora pegamos os elementos do NOVO formulário)
     const newPassInput = document.getElementById('account-new-password');
     const confirmPassInput = document.getElementById('account-confirm-password');
     const currentPassInput = document.getElementById('account-current-password');
 
-    // 3. Preenchimento dos Dados Estáticos
     document.getElementById('account-name').value = state.loggedInUser.nome;
     document.getElementById('account-cpf').value = state.loggedInUser.cpf;
     document.getElementById('account-access-type').value = state.loggedInUser.tipoAcesso;
 
-    // 4. Definição dos Handlers
     const handleSubmit = async (e) => {
         e.preventDefault();
         
         const novaSenha = newPassInput.value;
         const confirmaSenha = confirmPassInput.value;
+        const senhaAtual = currentPassInput.value; // <-- CORREÇÃO AQUI
+
+        // --- CORREÇÃO AQUI: Validação da senha atual ---
+        if (!senhaAtual) {
+            showToast('Você deve digitar sua senha atual para salvar.', 'error');
+            return;
+        }
 
         if (novaSenha || confirmaSenha) {
             if (novaSenha !== confirmaSenha) {
-                alert('A nova senha e a confirmação não conferem.');
+                showToast('A nova senha e a confirmação não conferem.', 'error');
                 return;
             }
             if (novaSenha.length < 3) {
-                alert('A senha deve ter pelo menos 3 caracteres.');
+                showToast('A nova senha deve ter pelo menos 3 caracteres.', 'error');
                 return;
             }
         } else {
-            alert('Para salvar, preencha a nova senha.');
+            showToast('Para salvar, preencha a nova senha.', 'info');
             return;
         }
+        // ----------------------------------------------
 
         const submitButton = accountForm.querySelector('button[type="submit"]');
         try {
@@ -53,7 +57,8 @@ export const initContaPage = () => {
 
             const userId = state.loggedInUser.id;
             const updateData = {
-                senha: novaSenha
+                senha: novaSenha,
+                senhaAtual: senhaAtual // <-- CORREÇÃO AQUI
             };
 
             const response = await fetch(`${API_BASE_URL}/api/usuarios/${userId}`, {
@@ -68,27 +73,24 @@ export const initContaPage = () => {
             }
 
             const updatedUser = await response.json();
-
-            // Atualiza estado e sessão
+            
             state.loggedInUser = updatedUser;
             sessionStorage.setItem('loggedInUser', JSON.stringify(updatedUser));
 
-            // Atualiza interface
             const headerName = document.getElementById('username-display');
             if (headerName) {
                 headerName.textContent = `Olá, ${updatedUser.nome.split(' ')[0]}`;
             }
 
-            alert('Senha alterada com sucesso!');
+            showToast('Senha alterada com sucesso!', 'success');
             
-            // Limpa campos
             currentPassInput.value = '';
             newPassInput.value = '';
             confirmPassInput.value = '';
 
         } catch (error) {
             console.error('Erro ao atualizar conta:', error);
-            alert(error.message);
+            showToast(error.message, 'error');
         } finally {
             submitButton.disabled = false;
             submitButton.textContent = 'Salvar';
@@ -101,7 +103,6 @@ export const initContaPage = () => {
         confirmPassInput.value = '';
     };
 
-    // 5. Adicionar Listeners aos novos elementos
     accountForm.addEventListener('submit', handleSubmit);
     cancelButton.addEventListener('click', handleCancel);
 };

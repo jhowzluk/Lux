@@ -79,15 +79,21 @@ exports.createUsuario = async (req, res) => {
 
 exports.updateUsuario = async (req, res) => {
     const { id } = req.params;
-    const { nome, email, tipoAcesso, status, senha } = req.body; // Agora pegamos a senha também
+    // senha = nova senha, senhaAtual = senha antiga
+    const { nome, email, tipoAcesso, status, senha, senhaAtual } = req.body; 
 
-    // Validações básicas
     if ((email !== undefined && email === '') || (nome !== undefined && nome === '')) {
          return res.status(400).json({ message: 'Nome e E-mail não podem ficar em branco.' });
     }
 
     try {
-        // Verifica se o e-mail já está em uso por OUTRO utilizador
+        // Busca o usuário primeiro (precisamos para validar a senha atual)
+        const [userRows] = await db.query("SELECT * FROM usuarios WHERE id = ?", [id]);
+        if (userRows.length === 0) {
+            return res.status(404).json({ message: 'Utilizador não encontrado.' });
+        }
+        const user = userRows[0];
+
         if (email) {
             const [existing] = await db.query(
                 "SELECT * FROM usuarios WHERE email = ? AND id != ?",
@@ -98,7 +104,6 @@ exports.updateUsuario = async (req, res) => {
             }
         }
         
-        // Monta a query dinamicamente baseada no que foi enviado
         let query = "UPDATE usuarios SET ";
         const params = [];
         
@@ -107,12 +112,25 @@ exports.updateUsuario = async (req, res) => {
         if (tipoAcesso) { query += "tipoAcesso = ?, "; params.push(tipoAcesso); }
         if (status) { query += "status = ?, "; params.push(status); }
         
-        // Se enviou senha, criptografa e adiciona à query
+        // --- CORREÇÃO AQUI: Lógica de troca de senha ---
         if (senha) { 
+            // Se uma senha nova foi enviada, a 'senhaAtual' é obrigatória
+            if (!senhaAtual) {
+                return res.status(401).json({ message: 'A senha atual é obrigatória para trocar a senha.' });
+            }
+            
+            // Compara a senha atual enviada com a do banco
+            const match = await bcrypt.compare(senhaAtual, user.senha);
+            if (!match) {
+                return res.status(401).json({ message: 'A senha atual está incorreta.' });
+            }
+
+            // Se chegou aqui, a senha atual está correta. Criptografa a nova.
             const senhaHash = await bcrypt.hash(senha, saltRounds);
             query += "senha = ?, "; 
             params.push(senhaHash); 
         }
+        // ----------------------------------------------
 
         // Remove a última vírgula e adiciona o WHERE
         query = query.slice(0, -2); 
@@ -121,11 +139,7 @@ exports.updateUsuario = async (req, res) => {
 
         await db.query(query, params);
         
-        // Devolve o utilizador atualizado
         const [updatedRows] = await db.query("SELECT * FROM usuarios WHERE id = ?", [id]);
-        if (updatedRows.length === 0) {
-            return res.status(404).json({ message: 'Utilizador não encontrado após atualização.' });
-        }
         
         res.json(sanitizeUser(updatedRows[0]));
     } catch (error) {
