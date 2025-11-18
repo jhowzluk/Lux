@@ -5,7 +5,7 @@ const authController = require('../controllers/authController');
 // Rota de Login
 router.post('/login', authController.login);
 
-// Rota de Recuperação de Senha (Exemplo)
-router.post('/recuperar-senha', authController.recoverPassword);
+// Rota de Recuperação de Senha
+router.post('/recover', authController.recoverPassword);
 
 module.exports = router;

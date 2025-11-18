@@ -7,6 +7,7 @@ import { initRelatoriosPage } from './pages/relatorios.js';
 import { initContaPage } from './pages/conta.js';
 import { showPage } from './ui.js';
 import { showToast } from './toast.js';
+import { validarCPF } from './utils.js'; // <-- NOVA IMPORTAÇÃO
 
 const appWrapper = document.getElementById('app-wrapper');
 const authWrapper = document.getElementById('auth-wrapper');
@@ -48,7 +49,6 @@ const applyPermissions = () => {
     const roomActions = document.getElementById('room-actions-header');
     if (roomActions) roomActions.style.display = isAdmin ? 'table-cell' : 'none';
 
-    // Se um Recepcionista recarregar a página em uma aba proibida, manda para Home
     if (!isAdmin) {
         const currentPage = sessionStorage.getItem('lastPageId');
         if (currentPage === 'page-nav-usuarios' || currentPage === 'page-nav-relatorios') {
@@ -56,8 +56,6 @@ const applyPermissions = () => {
             showToast('Acesso negado a esta página.', 'info');
         }
     }
-    
-    // O renderer é chamado dentro de cada initPage, não precisamos chamar aqui
 }
 
 const login = async (username, password) => {
@@ -79,21 +77,19 @@ const login = async (username, password) => {
             document.getElementById('username-display').textContent = `Olá, ${state.loggedInUser.nome.split(' ')[0]}`;
             await loadInitialDataAndInitPages();
             
-            // --- CORREÇÃO AQUI ---
-            // Sempre envia para a home page após o login
-            // e limpa a 'lastPageId' para evitar bugs
             sessionStorage.removeItem('lastPageId');
             showPage('page-nav-home');
-            // ---------------------
 
         } else {
             document.getElementById('login-error').textContent = data.message;
             document.getElementById('login-error').classList.remove('hidden');
+            showToast(data.message, 'error');
         }
     } catch (error) {
         document.getElementById('login-error').textContent = 'Erro de conexão com o servidor.';
         document.getElementById('login-error').classList.remove('hidden');
         console.error('Erro ao tentar fazer login:', error);
+        showToast('Erro de conexão com o servidor.', 'error');
     }
 };
 
@@ -109,36 +105,51 @@ const logout = () => {
     authWrapper.classList.remove('hidden');
     userSession.style.display = 'none';
     
-    // Altera para page-login (que é a div) e não showPage (que é do app)
     document.querySelectorAll('.page-auth').forEach(p => p.classList.add('hidden'));
     document.getElementById('page-login').classList.remove('hidden');
 };
 
 const recoverPassword = async (email, cpf) => {
-    // Esta rota não existe no back-end, vamos simular
-    console.log("Simulando recuperação para:", email, cpf);
-    showToast("Função de recuperação ainda não implementada.", 'info');
-    
-    // Se a rota /api/auth/recover existisse:
-    // try {
-    //     const response = await fetch(`${API_BASE_URL}/api/auth/recover`, { ... });
-    //     const data = await response.json();
-    //     if (data.success) {
-    //         showToast(data.message, 'success');
-    //         showPage('page-login');
-    //     } else {
-    //         showToast(data.message, 'error');
-    //     }
-    // } catch (error) {
-    //     showToast('Erro de conexão ao tentar recuperar senha.', 'error');
-    // }
+    showToast('Processando solicitação...', 'info');
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/recover`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, cpf }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(data.message, 'success');
+            
+            setTimeout(() => {
+                document.querySelectorAll('.page-auth').forEach(p => p.classList.add('hidden'));
+                document.getElementById('page-login').classList.remove('hidden');
+                document.getElementById('recovery-form').reset();
+            }, 2000);
+            
+        } else {
+            showToast(data.message, 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao tentar recuperar senha:', error);
+        showToast('Erro de conexão ao tentar recuperar senha.', 'error');
+    }
 };
 
 export const setupAuth = () => {
-    // Garante que os listeners não sejam duplicados
     const loginForm = document.getElementById('login-form');
     if (loginForm.getAttribute('data-auth-listeners') === 'true') return;
     loginForm.setAttribute('data-auth-listeners', 'true');
+
+    // --- APLICAÇÃO DA MÁSCARA NA RECUPERAÇÃO ---
+    const recoveryCpfInput = document.getElementById('recovery-cpf');
+    if (recoveryCpfInput) {
+        IMask(recoveryCpfInput, { mask: '000.000.000-00' });
+    }
+    // -------------------------------------------
 
     loginForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -148,11 +159,13 @@ export const setupAuth = () => {
     });
     
     document.getElementById('logout-button').addEventListener('click', logout);
+    
     document.getElementById('forgot-password-link').addEventListener('click', (e) => { 
         e.preventDefault(); 
         document.querySelectorAll('.page-auth').forEach(p => p.classList.add('hidden'));
         document.getElementById('page-recovery').classList.remove('hidden');
     });
+    
     document.getElementById('back-to-login-link').addEventListener('click', (e) => { 
         e.preventDefault(); 
         document.querySelectorAll('.page-auth').forEach(p => p.classList.add('hidden'));
@@ -163,6 +176,14 @@ export const setupAuth = () => {
         e.preventDefault();
         const email = document.getElementById('recovery-email').value;
         const cpf = document.getElementById('recovery-cpf').value;
+
+        // --- VALIDAÇÃO DE CPF ---
+        if (!validarCPF(cpf)) {
+            showToast('O CPF informado é inválido. Por favor, verifique.', 'error');
+            return;
+        }
+        // ------------------------
+
         recoverPassword(email, cpf);
     });
 };
