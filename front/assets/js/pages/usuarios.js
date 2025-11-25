@@ -2,8 +2,8 @@ import { state } from '../state.js';
 import { openModal, closeModal } from '../ui.js';
 import { renderTableUsuarios } from './renderer.js';
 import API_BASE_URL from '../api.js';
-import { validarCPF } from '../utils.js'; 
-import { showToast } from '../toast.js';
+import { validarCPF, validarSenha } from '../utils.js';
+import { showToast } from '../toast.js'; 
 
 const editUser = (id) => {
     const user = state.users.find(u => u.id === id);
@@ -111,6 +111,12 @@ export const initUsuariosPage = () => {
         
         if (passwordInput.value !== confirmPasswordInput.value) {
             showToast('As senhas não conferem.', 'error');
+            return;
+        }
+
+        const validacaoSenha = validarSenha(passwordInput.value);
+        if (!validacaoSenha.valido) {
+            showToast(validacaoSenha.mensagem, 'error');
             return;
         }
 
