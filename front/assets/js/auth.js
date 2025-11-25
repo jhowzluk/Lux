@@ -7,7 +7,7 @@ import { initRelatoriosPage } from './pages/relatorios.js';
 import { initContaPage } from './pages/conta.js';
 import { showPage } from './ui.js';
 import { showToast } from './toast.js';
-import { validarCPF } from './utils.js'; // <-- NOVA IMPORTAÇÃO
+import { validarCPF } from './utils.js';
 
 const appWrapper = document.getElementById('app-wrapper');
 const authWrapper = document.getElementById('auth-wrapper');
@@ -71,14 +71,23 @@ const login = async (username, password) => {
             state.loggedInUser = data.user;
             sessionStorage.setItem('loggedInUser', JSON.stringify(data.user));
 
+            // --- CORREÇÃO DO PISCAR ---
+            // 1. Esconde o login
             authWrapper.classList.add('hidden');
+
+            // 2. Arruma a casa: define a Home ANTES de mostrar o app
+            // Assim, quando o app aparecer, já estará na tela certa.
+            sessionStorage.removeItem('lastPageId');
+            showPage('page-nav-home'); 
+
+            // 3. Agora sim, mostra o app (já na Home)
             appWrapper.classList.remove('hidden');
             userSession.style.display = 'flex';
             document.getElementById('username-display').textContent = `Olá, ${state.loggedInUser.nome.split(' ')[0]}`;
-            await loadInitialDataAndInitPages();
             
-            sessionStorage.removeItem('lastPageId');
-            showPage('page-nav-home');
+            // 4. Carrega os dados em segundo plano
+            await loadInitialDataAndInitPages();
+            // --------------------------
 
         } else {
             document.getElementById('login-error').textContent = data.message;
@@ -144,12 +153,10 @@ export const setupAuth = () => {
     if (loginForm.getAttribute('data-auth-listeners') === 'true') return;
     loginForm.setAttribute('data-auth-listeners', 'true');
 
-    // --- APLICAÇÃO DA MÁSCARA NA RECUPERAÇÃO ---
     const recoveryCpfInput = document.getElementById('recovery-cpf');
     if (recoveryCpfInput) {
         IMask(recoveryCpfInput, { mask: '000.000.000-00' });
     }
-    // -------------------------------------------
 
     loginForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -177,12 +184,10 @@ export const setupAuth = () => {
         const email = document.getElementById('recovery-email').value;
         const cpf = document.getElementById('recovery-cpf').value;
 
-        // --- VALIDAÇÃO DE CPF ---
         if (!validarCPF(cpf)) {
             showToast('O CPF informado é inválido. Por favor, verifique.', 'error');
             return;
         }
-        // ------------------------
 
         recoverPassword(email, cpf);
     });
