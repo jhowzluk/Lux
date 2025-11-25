@@ -1,35 +1,53 @@
 import { state } from '../state.js';
 import API_BASE_URL from '../api.js';
 import { showToast } from '../toast.js';
+import { showPage } from '../ui.js';
 
 export const initContaPage = () => {
     if (!state.loggedInUser) return; 
 
-    const oldForm = document.getElementById('account-form');
-    const oldCancelBtn = document.getElementById('cancel-account-button');
+    // 1. Captura o formulário atual na tela
+    const currentForm = document.getElementById('account-form');
+    
+    // 2. Clona o formulário para remover todos os event listeners antigos
+    const newForm = currentForm.cloneNode(true);
+    
+    // 3. Substitui o formulário antigo pelo novo na página
+    currentForm.replaceWith(newForm);
 
-    const accountForm = oldForm.cloneNode(true);
-    oldForm.replaceWith(accountForm);
+    // 4. AGORA capturamos os elementos de dentro do NOVO formulário (que está na tela)
+    const cancelButton = newForm.querySelector('#cancel-account-button');
+    const newPassInput = newForm.querySelector('#account-new-password');
+    const confirmPassInput = newForm.querySelector('#account-confirm-password');
+    const currentPassInput = newForm.querySelector('#account-current-password');
+    const nameInput = newForm.querySelector('#account-name');
+    const cpfInput = newForm.querySelector('#account-cpf');
+    const accessInput = newForm.querySelector('#account-access-type');
 
-    const cancelButton = oldCancelBtn.cloneNode(true);
-    oldCancelBtn.replaceWith(cancelButton);
+    // 5. Preenche os dados estáticos
+    nameInput.value = state.loggedInUser.nome;
+    cpfInput.value = state.loggedInUser.cpf;
+    accessInput.value = state.loggedInUser.tipoAcesso;
 
-    const newPassInput = document.getElementById('account-new-password');
-    const confirmPassInput = document.getElementById('account-confirm-password');
-    const currentPassInput = document.getElementById('account-current-password');
+    // 6. Define a ação de Cancelar
+    const handleCancel = () => {
+        // Limpa os campos
+        currentPassInput.value = '';
+        newPassInput.value = '';
+        confirmPassInput.value = '';
+        
+        // Volta para a Home
+        showPage('page-nav-home');
+    };
 
-    document.getElementById('account-name').value = state.loggedInUser.nome;
-    document.getElementById('account-cpf').value = state.loggedInUser.cpf;
-    document.getElementById('account-access-type').value = state.loggedInUser.tipoAcesso;
-
+    // 7. Define a ação de Salvar
     const handleSubmit = async (e) => {
         e.preventDefault();
         
         const novaSenha = newPassInput.value;
         const confirmaSenha = confirmPassInput.value;
-        const senhaAtual = currentPassInput.value; // <-- CORREÇÃO AQUI
+        const senhaAtual = currentPassInput.value;
 
-        // --- CORREÇÃO AQUI: Validação da senha atual ---
         if (!senhaAtual) {
             showToast('Você deve digitar sua senha atual para salvar.', 'error');
             return;
@@ -48,9 +66,9 @@ export const initContaPage = () => {
             showToast('Para salvar, preencha a nova senha.', 'info');
             return;
         }
-        // ----------------------------------------------
 
-        const submitButton = accountForm.querySelector('button[type="submit"]');
+        const submitButton = newForm.querySelector('button[type="submit"]');
+        
         try {
             submitButton.disabled = true;
             submitButton.textContent = 'Salvando...';
@@ -58,7 +76,7 @@ export const initContaPage = () => {
             const userId = state.loggedInUser.id;
             const updateData = {
                 senha: novaSenha,
-                senhaAtual: senhaAtual // <-- CORREÇÃO AQUI
+                senhaAtual: senhaAtual
             };
 
             const response = await fetch(`${API_BASE_URL}/api/usuarios/${userId}`, {
@@ -73,7 +91,7 @@ export const initContaPage = () => {
             }
 
             const updatedUser = await response.json();
-            
+
             state.loggedInUser = updatedUser;
             sessionStorage.setItem('loggedInUser', JSON.stringify(updatedUser));
 
@@ -84,6 +102,7 @@ export const initContaPage = () => {
 
             showToast('Senha alterada com sucesso!', 'success');
             
+            // Limpa os campos após sucesso
             currentPassInput.value = '';
             newPassInput.value = '';
             confirmPassInput.value = '';
@@ -97,12 +116,7 @@ export const initContaPage = () => {
         }
     };
 
-    const handleCancel = () => {
-        currentPassInput.value = '';
-        newPassInput.value = '';
-        confirmPassInput.value = '';
-    };
-
-    accountForm.addEventListener('submit', handleSubmit);
+    // 8. Adiciona os listeners aos elementos do NOVO formulário
+    newForm.addEventListener('submit', handleSubmit);
     cancelButton.addEventListener('click', handleCancel);
 };
