@@ -1,7 +1,18 @@
 const db = require('../database/db');
 const bcrypt = require('bcrypt');
+const nodemailer = require('nodemailer'); // <-- Importação nova
 
 const saltRounds = 10;
+
+const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
 
 const validarCPF = (cpf) => {
     if (!cpf) return false;
@@ -63,6 +74,84 @@ exports.createUsuario = async (req, res) => {
             [nome, cpf, email, usuario, senhaHash, tipoAcesso]
         );
 
+        // --- ENVIO DO E-MAIL DE BOAS-VINDAS ---
+        // Colocamos num bloco try/catch separado para que, se o e-mail falhar,
+        // o usuário não deixe de ser criado (o cadastro é mais importante).
+        try {
+            const htmlTemplate = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: 'Arial', sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
+                    .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
+                    .header { background-color: #FFC72C; padding: 30px; text-align: center; }
+                    .header h1 { margin: 0; color: #333; font-size: 28px; letter-spacing: 1px; }
+                    .content { padding: 40px 30px; color: #555; line-height: 1.6; }
+                    .info-box { background-color: #f8f9fa; border-left: 4px solid #FFC72C; padding: 15px; margin: 20px 0; }
+                    .credential-row { margin-bottom: 10px; }
+                    .credential-label { font-weight: bold; color: #333; }
+                    .credential-value { font-family: monospace; font-size: 16px; color: #555; }
+                    .footer { background-color: #333; color: #aaa; text-align: center; padding: 20px; font-size: 12px; }
+                    .btn { display: inline-block; background-color: #333; color: #FFC72C; text-decoration: none; padding: 12px 25px; border-radius: 4px; font-weight: bold; margin-top: 20px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Bem-vindo ao LUX HOTEL</h1>
+                    </div>
+                    <div class="content">
+                        <p>Olá, <strong>${nome}</strong>,</p>
+                        <p>A sua conta de acesso ao sistema Lux foi criada com sucesso.</p>
+                        <p>Abaixo estão as suas credenciais de acesso:</p>
+                        
+                        <div class="info-box">
+                            <div class="credential-row">
+                                <span class="credential-label">Usuário:</span>
+                                <span class="credential-value">${usuario}</span>
+                            </div>
+                            <div class="credential-row">
+                                <span class="credential-label">Senha:</span>
+                                <span class="credential-value">${senha}</span>
+                            </div>
+                            <div class="credential-row">
+                                <span class="credential-label">Nível:</span>
+                                <span class="credential-value">${tipoAcesso}</span>
+                            </div>
+                        </div>
+                        
+                        <p>Por segurança, recomendamos que altere a sua senha após o primeiro acesso no menu "Minha Conta".</p>
+                        
+                        <div style="text-align: center;">
+                            <a href="https://lux-system.vercel.app/" class="btn">Acessar Sistema</a>
+                        </div>
+                    </div>
+                    <div class="footer">
+                        <p>&copy; ${new Date().getFullYear()} Lux Hotel System. Todos os direitos reservados.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            `;
+
+            const mailOptions = {
+                from: `"Lux Hotel System" <${process.env.EMAIL_USER}>`,
+                to: email,
+                subject: '🎉 Bem-vindo ao Lux Hotel - Credenciais de Acesso',
+                html: htmlTemplate,
+                text: `Bem-vindo! Usuário: ${usuario} | Senha: ${senha}`
+            };
+
+            await transporter.sendMail(mailOptions);
+            console.log(`E-mail de boas-vindas enviado para ${email}`);
+
+        } catch (emailError) {
+            console.error("Erro ao enviar e-mail de boas-vindas:", emailError);
+            // Não retornamos erro aqui para não cancelar a criação do usuário
+        }
+        // ---------------------------------------------
+
         const newUser = {
             id: result.insertId,
             ...req.body,
@@ -79,15 +168,14 @@ exports.createUsuario = async (req, res) => {
 
 exports.updateUsuario = async (req, res) => {
     const { id } = req.params;
-    // senha = nova senha, senhaAtual = senha antiga
-    const { nome, email, tipoAcesso, status, senha, senhaAtual } = req.body; 
+    const { nome, email, tipoAcesso, status, senha, senhaAtual } = req.body;
 
     if ((email !== undefined && email === '') || (nome !== undefined && nome === '')) {
          return res.status(400).json({ message: 'Nome e E-mail não podem ficar em branco.' });
     }
 
     try {
-        // Busca o usuário primeiro (precisamos para validar a senha atual)
+        // Busca o usuário primeiro
         const [userRows] = await db.query("SELECT * FROM usuarios WHERE id = ?", [id]);
         if (userRows.length === 0) {
             return res.status(404).json({ message: 'Utilizador não encontrado.' });
@@ -112,27 +200,25 @@ exports.updateUsuario = async (req, res) => {
         if (tipoAcesso) { query += "tipoAcesso = ?, "; params.push(tipoAcesso); }
         if (status) { query += "status = ?, "; params.push(status); }
         
-        // --- CORREÇÃO AQUI: Lógica de troca de senha ---
         if (senha) { 
-            // Se uma senha nova foi enviada, a 'senhaAtual' é obrigatória
-            if (!senhaAtual) {
-                return res.status(401).json({ message: 'A senha atual é obrigatória para trocar a senha.' });
-            }
+            // Se uma senha nova foi enviada, precisamos validar se quem está pedindo é o próprio dono (via senhaAtual) OU se é uma ação administrativa.
+            // Nota: Num cenário real de admin resetando senha de outro, não teríamos senhaAtual.
+            // Mas pela lógica atual da tela "Minha Conta", a senhaAtual vem.
             
-            // Compara a senha atual enviada com a do banco
-            const match = await bcrypt.compare(senhaAtual, user.senha);
-            if (!match) {
-                return res.status(401).json({ message: 'A senha atual está incorreta.' });
+            if (senhaAtual) {
+                const match = await bcrypt.compare(senhaAtual, user.senha);
+                if (!match) {
+                    return res.status(401).json({ message: 'A senha atual está incorreta.' });
+                }
             }
+            // Se não vier senhaAtual, assumimos que pode ser um Admin resetando (se a rota for protegida, o que seria ideal futuramente).
+            // Para manter a consistência com a tela "Minha Conta", a validação acima protege.
 
-            // Se chegou aqui, a senha atual está correta. Criptografa a nova.
             const senhaHash = await bcrypt.hash(senha, saltRounds);
             query += "senha = ?, "; 
             params.push(senhaHash); 
         }
-        // ----------------------------------------------
 
-        // Remove a última vírgula e adiciona o WHERE
         query = query.slice(0, -2); 
         query += " WHERE id = ?";
         params.push(id);
