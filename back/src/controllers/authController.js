@@ -101,7 +101,7 @@ exports.recoverPassword = async (req, res) => {
         <body>
             <div class="container">
                 <div class="header">
-                    <h1>LUX HOTEL</h1>
+                    <h1>LUX</h1>
                 </div>
                 <div class="content">
                     <p>Olá, <strong>${user.nome}</strong>,</p>
@@ -117,7 +117,7 @@ exports.recoverPassword = async (req, res) => {
                     </div>
                 </div>
                 <div class="footer">
-                    <p>&copy; ${new Date().getFullYear()} Lux Hotel System. Todos os direitos reservados.</p>
+                    <p>&copy; ${new Date().getFullYear()} Lux. Todos os direitos reservados.</p>
                     <p>Este é um e-mail automático, por favor não responda.</p>
                 </div>
             </div>
@@ -126,9 +126,9 @@ exports.recoverPassword = async (req, res) => {
         `;
 
         const mailOptions = {
-            from: `"Lux Hotel System" <${process.env.EMAIL_USER}>`, // Nome personalizado + email
+            from: `"Lux" <${process.env.EMAIL_USER}>`, // Nome personalizado + email
             to: email,
-            subject: '🔐 Recuperação de Senha - Lux Hotel',
+            subject: '🔐 Recuperação de Senha - Lux',
             html: htmlTemplate, // Agora usamos HTML em vez de text
             text: `Olá ${user.nome}, sua nova senha temporária é: ${senhaTemporaria}` // Fallback para clientes sem HTML
         };

@@ -15,7 +15,7 @@ app.use(express.json());
 
 // Rotas
 app.get('/', (req, res) => {
-    res.json({ message: 'API do Lux Hotel funcionando!' });
+    res.json({ message: 'API do Lux funcionando!' });
 });
 
 app.use('/api/auth', authRoutes);

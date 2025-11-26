@@ -99,7 +99,7 @@ exports.createUsuario = async (req, res) => {
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>Bem-vindo ao LUX HOTEL</h1>
+                        <h1>Bem-vindo ao LUX</h1>
                     </div>
                     <div class="content">
                         <p>Olá, <strong>${nome}</strong>,</p>
@@ -128,7 +128,7 @@ exports.createUsuario = async (req, res) => {
                         </div>
                     </div>
                     <div class="footer">
-                        <p>&copy; ${new Date().getFullYear()} Lux Hotel System. Todos os direitos reservados.</p>
+                        <p>&copy; ${new Date().getFullYear()} Lux. Todos os direitos reservados.</p>
                     </div>
                 </div>
             </body>
@@ -136,9 +136,9 @@ exports.createUsuario = async (req, res) => {
             `;
 
             const mailOptions = {
-                from: `"Lux Hotel System" <${process.env.EMAIL_USER}>`,
+                from: `"Lux" <${process.env.EMAIL_USER}>`,
                 to: email,
-                subject: '🎉 Bem-vindo ao Lux Hotel - Credenciais de Acesso',
+                subject: '🎉 Bem-vindo ao Lux - Credenciais de Acesso',
                 html: htmlTemplate,
                 text: `Bem-vindo! Usuário: ${usuario} | Senha: ${senha}`
             };
