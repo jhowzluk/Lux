@@ -66,7 +66,6 @@ exports.recoverPassword = async (req, res) => {
     }
 
     try {
-        // 1. Validar se o usuário existe com esse Email E esse CPF
         const [rows] = await db.query(
             "SELECT * FROM usuarios WHERE email = ? AND cpf = ?", 
             [email, cpf]
@@ -78,21 +77,60 @@ exports.recoverPassword = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Dados não conferem com nenhum usuário cadastrado.' });
         }
 
-        // 2. Gerar uma senha temporária (8 caracteres aleatórios)
         const senhaTemporaria = Math.random().toString(36).slice(-8);
-
-        // 3. Criptografar a senha temporária
         const senhaHash = await bcrypt.hash(senhaTemporaria, saltRounds);
 
-        // 4. Atualizar no Banco de Dados
         await db.query("UPDATE usuarios SET senha = ? WHERE id = ?", [senhaHash, user.id]);
 
-        // 5. Enviar o Email
+        // --- TEMPLATE DE E-MAIL EM HTML ---
+        const htmlTemplate = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: 'Arial', sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
+                .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
+                .header { background-color: #FFC72C; padding: 30px; text-align: center; }
+                .header h1 { margin: 0; color: #333; font-size: 28px; letter-spacing: 1px; }
+                .content { padding: 40px 30px; color: #555; line-height: 1.6; }
+                .password-box { background-color: #f8f9fa; border: 2px dashed #FFC72C; border-radius: 6px; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 2px; color: #333; margin: 25px 0; }
+                .footer { background-color: #333; color: #aaa; text-align: center; padding: 20px; font-size: 12px; }
+                .btn { display: inline-block; background-color: #333; color: #FFC72C; text-decoration: none; padding: 12px 25px; border-radius: 4px; font-weight: bold; margin-top: 20px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>LUX HOTEL</h1>
+                </div>
+                <div class="content">
+                    <p>Olá, <strong>${user.nome}</strong>,</p>
+                    <p>Recebemos uma solicitação para redefinir a senha da sua conta no sistema Lux.</p>
+                    <p>Aqui está a sua nova senha temporária:</p>
+                    
+                    <div class="password-box">${senhaTemporaria}</div>
+                    
+                    <p>Utilize esta senha para entrar no sistema agora. Por segurança, recomendamos que você <strong>altere esta senha</strong> imediatamente acessando o menu "Minha Conta".</p>
+                    
+                    <div style="text-align: center;">
+                        <a href="https://lux-system.vercel.app/" class="btn">Acessar Sistema</a>
+                    </div>
+                </div>
+                <div class="footer">
+                    <p>&copy; ${new Date().getFullYear()} Lux Hotel System. Todos os direitos reservados.</p>
+                    <p>Este é um e-mail automático, por favor não responda.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        `;
+
         const mailOptions = {
-            from: process.env.EMAIL_USER, // Usa o email configurado no .env
+            from: `"Lux Hotel System" <${process.env.EMAIL_USER}>`, // Nome personalizado + email
             to: email,
-            subject: 'Lux Hotel - Recuperação de Senha',
-            text: `Olá, ${user.nome}.\n\nSua solicitação de recuperação de senha foi processada.\n\nSua nova senha temporária é: ${senhaTemporaria}\n\nPor favor, faça login e altere sua senha em "Minha Conta".`
+            subject: '🔐 Recuperação de Senha - Lux Hotel',
+            html: htmlTemplate, // Agora usamos HTML em vez de text
+            text: `Olá ${user.nome}, sua nova senha temporária é: ${senhaTemporaria}` // Fallback para clientes sem HTML
         };
 
         await transporter.sendMail(mailOptions);
